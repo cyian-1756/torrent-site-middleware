@@ -1,18 +1,19 @@
 package main
 
 import (
-    "github.com/gorilla/mux"
-    "log"
-	"net/http"
-	"io/ioutil"
-	"strings"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"strings"
+
 	"github.com/PuerkitoBio/goquery"
+	"github.com/gorilla/mux"
 )
 
 const (
 	debug = true
-	dURL = "https://www.demonoid.pw/genlb.php?genid="
+	dURL  = "https://www.demonoid.pw/genlb.php?genid="
 )
 
 func getPageAsString(url string) string {
@@ -21,12 +22,12 @@ func getPageAsString(url string) string {
 	}
 	resp, err := http.Get(url)
 	if err != nil {
-    	panic(err)
+		panic(err)
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-    	panic(err)
+		panic(err)
 	}
 	return string(body)
 }
@@ -37,12 +38,12 @@ func getPageAsBytes(url string) []byte {
 	}
 	resp, err := http.Get(url)
 	if err != nil {
-    	panic(err)
+		panic(err)
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-    	panic(err)
+		panic(err)
 	}
 	return []byte(body)
 }
@@ -53,7 +54,7 @@ func getPage(url string) *goquery.Document {
 	}
 	resp, err := http.Get(url)
 	if err != nil {
-    	panic(err)
+		panic(err)
 	}
 	defer resp.Body.Close()
 	g, err := goquery.NewDocumentFromReader(resp.Body)
@@ -73,7 +74,6 @@ func debugPrint(line string) {
 	}
 }
 
-
 func proxyRequest(rw http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 	page := getPageAsString(params["url"])
@@ -86,7 +86,6 @@ func proxyRequest(rw http.ResponseWriter, req *http.Request) {
 		debugPrint("Not using regex")
 	}
 	fmt.Fprintf(rw, page)
-    
 
 }
 
@@ -94,12 +93,14 @@ func extract(rw http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 	debugPrint("Using extractor " + params["site"])
 	debugPrint("URL id " + params["url_id"])
-	switch site = params["site"] {
-		case "demonoid":
-			debugPrint("Running " +  params["site"] + " extractor")
-			extractDemonoid(params["url_id"], rw)
-		default:
-			debugPrint("No extractor for " +  params["site"])
+	site := params["site"]
+	switch site {
+
+	case "demonoid":
+		debugPrint("Running " + params["site"] + " extractor")
+		extractDemonoid(params["url_id"], rw)
+	default:
+		debugPrint("No extractor for " + params["site"])
 
 	}
 }
@@ -113,17 +114,17 @@ func extractDemonoid(id string, rw http.ResponseWriter) {
 			debugPrint("Returning file from: " + e)
 			toReturn := getPageAsBytes(e)
 			rw.Write(toReturn)
-			
+
 		}
-	  })
+	})
 }
 
 // main function to boot up everything
 func main() {
-    log.Println("Setting up routes")
-    router := mux.NewRouter()
-	router.HandleFunc("/", proxyRequest).Queries("url","{url}", "use_regex", "{use_regex}", "to_replace", "{to_replace}", "replacement", "{replacement}").Methods("GET")
+	log.Println("Setting up routes")
+	router := mux.NewRouter()
+	router.HandleFunc("/", proxyRequest).Queries("url", "{url}", "use_regex", "{use_regex}", "to_replace", "{to_replace}", "replacement", "{replacement}").Methods("GET")
 	router.HandleFunc("/extractor/{site}/{url_id}", extract).Methods("GET")
-    log.Println("Routes set")
-    log.Fatal(http.ListenAndServe(":5000", router))
+	log.Println("Routes set")
+	log.Fatal(http.ListenAndServe(":5000", router))
 }
