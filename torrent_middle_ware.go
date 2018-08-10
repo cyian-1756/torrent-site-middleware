@@ -94,9 +94,13 @@ func extract(rw http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 	debugPrint("Using extractor " + params["site"])
 	debugPrint("URL id " + params["url_id"])
-	if params["site"] == "demonoid" {
-		debugPrint("Running " +  params["site"] + " extractor")
-		extractDemonoid(params["url_id"], rw)
+	switch site = params["site"] {
+		case "demonoid":
+			debugPrint("Running " +  params["site"] + " extractor")
+			extractDemonoid(params["url_id"], rw)
+		default:
+			debugPrint("No extractor for " +  params["site"])
+
 	}
 }
 
@@ -121,5 +125,5 @@ func main() {
 	router.HandleFunc("/", proxyRequest).Queries("url","{url}", "use_regex", "{use_regex}", "to_replace", "{to_replace}", "replacement", "{replacement}").Methods("GET")
 	router.HandleFunc("/extractor/{site}/{url_id}", extract).Methods("GET")
     log.Println("Routes set")
-    log.Fatal(http.ListenAndServe(":8888", router))
+    log.Fatal(http.ListenAndServe(":5000", router))
 }
