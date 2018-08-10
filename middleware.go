@@ -16,10 +16,7 @@ const (
 	dURL  = "https://www.demonoid.pw/genlb.php?genid="
 )
 
-func getPageAsString(url string) string {
-	if debug {
-		log.Println("URL: " + url)
-	}
+func getPage(url string) []byte {
 	resp, err := http.Get(url)
 	if err != nil {
 		panic(err)
@@ -29,29 +26,10 @@ func getPageAsString(url string) string {
 	if err != nil {
 		panic(err)
 	}
-	return string(body)
+	return body
 }
 
-func getPageAsBytes(url string) []byte {
-	if debug {
-		log.Println("URL: " + url)
-	}
-	resp, err := http.Get(url)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		panic(err)
-	}
-	return []byte(body)
-}
-
-func getPage(url string) *goquery.Document {
-	if debug {
-		log.Println("URL: " + url)
-	}
+func getDoc(url string) *goquery.Document {
 	resp, err := http.Get(url)
 	if err != nil {
 		panic(err)
@@ -76,15 +54,15 @@ func debugPrint(line string) {
 
 func proxyRequest(rw http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
-	page := getPageAsString(params["url"])
+	url := params["url"]
+	debugPrint("Getting page " + url)
+	page := string(getPage(url))
 	toReplace := params["to_replace"]
 	replacement := params["replacement"]
 	if params["use_regex"] == "1" {
-		debugPrint("Using regex")
 		page = strings.Replace(page, toReplace, replacement, -1)
-	} else {
-		debugPrint("Not using regex")
 	}
+	debugPrint("Returning page")
 	fmt.Fprintf(rw, page)
 
 }
@@ -106,20 +84,18 @@ func extract(rw http.ResponseWriter, req *http.Request) {
 }
 
 func extractDemonoid(id string, rw http.ResponseWriter) {
-	doc := getPage(dURL + id)
+	doc := getDoc(dURL + id)
 	doc.Find(".ctable_content div a").Each(func(i int, s *goquery.Selection) {
 		e, _ := s.Attr("href")
 		debugPrint(e)
 		if strings.Contains(e, "www.hypercache.pw") {
-			debugPrint("Returning file from: " + e)
-			toReturn := getPageAsBytes(e)
+			toReturn := []byte(getPage(e))
 			rw.Write(toReturn)
 
 		}
 	})
 }
 
-// main function to boot up everything
 func main() {
 	log.Println("Setting up routes")
 	router := mux.NewRouter()
