@@ -60,6 +60,8 @@ func debugPrint(line string) {
 	}
 }
 
+
+// Proxy a request and maybe use regex
 func proxyRequest(rw http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 	url := params["url"]
@@ -75,6 +77,7 @@ func proxyRequest(rw http.ResponseWriter, req *http.Request) {
 
 }
 
+// Extract a torrent from a page
 func extract(rw http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 	debugPrint("Using extractor " + params["site"])
@@ -89,6 +92,7 @@ func extract(rw http.ResponseWriter, req *http.Request) {
 		debugPrint("Running " + params["site"] + " extractor")
 		extract1337x(params["url_id"], rw)
 	default:
+		// TODO return error instead of just printing to log
 		debugPrint("No extractor for " + params["site"])
 
 	}
@@ -99,6 +103,7 @@ func extractDemonoid(id string, rw http.ResponseWriter) {
 	doc.Find(".ctable_content div a").Each(func(i int, s *goquery.Selection) {
 		e, _ := s.Attr("href")
 		debugPrint(e)
+		// Make sure the link points to Demonoids cache
 		if strings.Contains(e, "www.hypercache.pw") {
 			toReturn := []byte(getPage(e))
 			rw.Write(toReturn)
@@ -108,11 +113,9 @@ func extractDemonoid(id string, rw http.ResponseWriter) {
 }
 
 func extract1337x(id string, rw http.ResponseWriter) {
-	debugPrint("Starting")
+	// Because of 1227xs bugging url routing titleless urls need to end with an extra /
 	doc := getDoc("https://1337x.to/torrent/" + id + "//")
-	debugPrint("Finding torrent links")
 	sel := doc.Find("a")
-	debugPrint("got torrent links")
 	for i := range sel.Nodes {
 		debugPrint("Looping over torrent links")
 		s := sel.Eq(i)
@@ -124,7 +127,6 @@ func extract1337x(id string, rw http.ResponseWriter) {
 
 		}
 	}
-		
 }
 
 func generateFeed(title string, link string, des string) *feeds.Feed {
@@ -132,7 +134,7 @@ func generateFeed(title string, link string, des string) *feeds.Feed {
         Title:       title,
         Link:        &feeds.Link{Href: link},
         Description: des,
-        Author:      &feeds.Author{Name: "test"},
+        Author:      &feeds.Author{Name: "middleware"},
         Created:     time.Now(),
 	}
 	return feed
@@ -154,6 +156,8 @@ func scrape1337x(feed *feeds.Feed, urlToScrape string) string {
 		e, _ := s.Attr("href")
 		debugPrint(e)
 		if strings.Contains(e, "/torrent/") {
+			// Set the link to the url of the 1337x extractor
+			// TODO dehardcode url
 			feed.Add(generateItem(s.Text(), "http://127.0.0.1:5000/extractor/1337x/" + strings.Split(e, "/")[2]))
 		}
 
@@ -177,11 +181,11 @@ func siteToRss(rw http.ResponseWriter, req *http.Request) {
 	case "1337x":
 		fmt.Fprintf(rw, scrape1337x(feed, url))
 	default:
+		// TODO find out if this should really throw a 400
 		rw.WriteHeader(400)
 		fmt.Fprintf(rw, "No rss generator for that site")
 	}
 	
-
 }
 
 func main() {
